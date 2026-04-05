@@ -9,12 +9,40 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.List;
+import java.util.stream.Collectors;
+import com.medical.dto.DoctorCardDto;
+
 @Service
 @RequiredArgsConstructor
 public class DoctorService {
 
     private final DoctorRepository doctorRepository;
     private final SpecializationRepository specializationRepository;
+
+    @Transactional(readOnly = true)
+    public List<DoctorCardDto> getAllDoctors() {
+        return doctorRepository.findAll().stream()
+                .map(this::mapToCardDto)
+                .collect(Collectors.toList());
+    }
+
+    @Transactional(readOnly = true)
+    public List<DoctorCardDto> getDoctorsBySpecialization(Long specializationId) {
+        return doctorRepository.findBySpecializationId(specializationId).stream()
+                .map(this::mapToCardDto)
+                .collect(Collectors.toList());
+    }
+
+    private DoctorCardDto mapToCardDto(Doctor doctor) {
+        return DoctorCardDto.builder()
+                .id(doctor.getId())
+                .fullName(doctor.getFullName())
+                .specializationName(doctor.getSpecialization() != null ? doctor.getSpecialization().getName() : "Đa khoa")
+                .experienceYears(doctor.getExperienceYears())
+                .avatarUrl(doctor.getAvatarUrl())
+                .build();
+    }
 
     @Transactional(readOnly = true)
     public DoctorProfileDto getProfileByUsername(String username) {

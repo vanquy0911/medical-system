@@ -10,6 +10,8 @@ import java.util.Optional;
 
 @Repository
 public interface AppointmentRepository extends JpaRepository<Appointment, Long> {
-    List<Appointment> findByDoctorIdAndAppointmentTimeBetweenOrderByAppointmentTimeAsc(Long doctorId, LocalDateTime startOfDay, LocalDateTime endOfDay);
+    List<Appointment> findByDoctorIdAndAppointmentTimeBetweenOrderByAppointmentTimeAsc(Long doctorId,
+            LocalDateTime startOfDay, LocalDateTime endOfDay);
+
     Optional<Appointment> findByIdAndDoctorId(Long id, Long doctorId);
 }
