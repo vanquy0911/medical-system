@@ -61,6 +61,14 @@ public class MedicalRecordService {
     }
 
     @Transactional(readOnly = true)
+    public List<PatientRecordDto> getMyMedicalHistory(String username) {
+        Patient patient = patientRepository.findByUserUsername(username)
+                .orElseThrow(() -> new RuntimeException("Patient profile not found for user: " + username));
+        
+        return getPatientRecords(username, patient.getId());
+    }
+
+    @Transactional(readOnly = true)
     public com.medical.dto.PatientHistoryResponse getPatientHistory(String username, Long patientId) {
         Patient patient = patientRepository.findById(patientId)
                 .orElseThrow(() -> new RuntimeException("Patient not found"));

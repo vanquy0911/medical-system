@@ -105,20 +105,84 @@ public class AppointmentService {
                                 .findByDoctorIdAndAppointmentTimeBetweenOrderByAppointmentTimeAsc(
                                                 doctor.getId(), startOfDay, endOfDay);
 
+                return appointments.stream().map(this::mapToDto).collect(Collectors.toList());
+        }
+
+        @Transactional(readOnly = true)
+        public List<AppointmentDto> getMyAppointments(String username) {
+                List<Appointment> appointments = appointmentRepository
+                                .findByPatientUserUsernameOrderByAppointmentTimeDesc(username);
+                return appointments.stream().map(this::mapToDto).collect(Collectors.toList());
+        }
+
+        private AppointmentDto mapToDto(Appointment app) {
+                DateTimeFormatter dateFormatter = DateTimeFormatter.ofPattern("dd/MM/yyyy");
                 DateTimeFormatter timeFormatter = DateTimeFormatter.ofPattern("HH:mm");
 
-                return appointments.stream().map(app -> AppointmentDto.builder()
+                return AppointmentDto.builder()
                                 .id(app.getId())
+                                .date(app.getAppointmentTime().format(dateFormatter))
                                 .time(app.getAppointmentTime().format(timeFormatter))
+                                .doctorName(app.getDoctor().getFullName())
+                                .specialtyName(app.getDoctor().getSpecialization() != null
+                                                ? app.getDoctor().getSpecialization().getName()
+                                                : "Đa khoa")
                                 .patientName(app.getPatient().getFullName())
                                 .phone(app.getPatient().getUser().getPhoneNumber())
-                                // Assuming reason exists in MedicalRecord or we map it from somewhere else,
-                                // maybe MedicalRecord's symptoms if available
-                                // If not available in Appointment, we might just mock it or add it later. The
-                                // entity Appointment doesn't have reason.
-                                // We'll return empty or generic reason as placeholder
-                                .reason("Khám bệnh theo lịch trình")
+                                .reason("Khám bệnh")
                                 .status(app.getStatus().name().toLowerCase())
-                                .build()).collect(Collectors.toList());
+                                .build();
+        }
+
+        @Transactional
+        public void cancelAppointment(Long id, String username) {
+                Appointment appointment = appointmentRepository.findByIdAndPatientUserUsername(id, username)
+                                .orElseThrow(() -> new RuntimeException("Lịch hẹn không tồn tại hoặc bạn không có quyền hủy."));
+
+                if (appointment.getStatus() == AppointmentStatus.COMPLETED) {
+                        throw new RuntimeException("Không thể hủy lịch hẹn đã hoàn thành.");
+                }
+
+                appointment.setStatus(AppointmentStatus.CANCELED);
+                appointmentRepository.save(appointment);
+        }
+
+        @Transactional
+        public void rescheduleAppointment(Long id, String username, BookingRequestDto request) {
+                Appointment appointment = appointmentRepository.findByIdAndPatientUserUsername(id, username)
+                                .orElseThrow(() -> new RuntimeException("Lịch hẹn không tồn tại hoặc bạn không có quyền đổi lịch."));
+
+                if (appointment.getStatus() == AppointmentStatus.COMPLETED) {
+                        throw new RuntimeException("Không thể đổi lịch hẹn đã hoàn thành.");
+                }
+
+                Doctor doctor = doctorRepository.findById(request.getDoctorId())
+                                .orElseThrow(() -> new RuntimeException("Doctor not found"));
+
+                LocalDateTime newTime = LocalDateTime.of(
+                                LocalDate.parse(request.getAppointmentDate()),
+                                LocalTime.parse(request.getAppointmentTime()));
+
+                // Logic kiểm tra ca trực và trùng lịch (tương tự createAppointment)
+                Shift requiredShift = determineShift(newTime.toLocalTime());
+                List<WorkSchedule> schedules = workScheduleRepository.findByDoctorIdAndWorkDate(doctor.getId(),
+                                newTime.toLocalDate());
+                boolean isWorking = schedules.stream().anyMatch(s -> s.getShift() == requiredShift);
+
+                if (!isWorking) {
+                        throw new RuntimeException("Bác sĩ không có lịch làm việc vào ca này.");
+                }
+
+                // Kiểm tra trùng lịch (loại trừ chính nó)
+                List<Appointment> conflicts = appointmentRepository.findByDoctorIdAndAppointmentTimeBetweenOrderByAppointmentTimeAsc(
+                                doctor.getId(), newTime, newTime);
+                if (conflicts.stream().anyMatch(a -> !a.getId().equals(id))) {
+                        throw new RuntimeException("Khung giờ này đã có người đặt.");
+                }
+
+                appointment.setDoctor(doctor);
+                appointment.setAppointmentTime(newTime);
+                appointment.setStatus(AppointmentStatus.PENDING); // Reset về chờ xác nhận khi đổi lịch
+                appointmentRepository.save(appointment);
         }
 }

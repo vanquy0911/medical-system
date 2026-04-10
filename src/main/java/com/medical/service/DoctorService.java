@@ -34,6 +34,25 @@ public class DoctorService {
                 .collect(Collectors.toList());
     }
 
+    @Transactional(readOnly = true)
+    public List<DoctorCardDto> searchDoctors(String name, Long specializationId) {
+        List<Doctor> doctors;
+        
+        if (name != null && !name.isEmpty() && specializationId != null) {
+            doctors = doctorRepository.findBySpecializationIdAndFullNameContainingIgnoreCase(specializationId, name);
+        } else if (name != null && !name.isEmpty()) {
+            doctors = doctorRepository.findByFullNameContainingIgnoreCase(name);
+        } else if (specializationId != null) {
+            doctors = doctorRepository.findBySpecializationId(specializationId);
+        } else {
+            doctors = doctorRepository.findAll();
+        }
+
+        return doctors.stream()
+                .map(this::mapToCardDto)
+                .collect(Collectors.toList());
+    }
+
     private DoctorCardDto mapToCardDto(Doctor doctor) {
         return DoctorCardDto.builder()
                 .id(doctor.getId())

@@ -24,10 +24,9 @@ public class PublicController {
     }
 
     @GetMapping("/doctors")
-    public ResponseEntity<List<DoctorCardDto>> getDoctors(@RequestParam(required = false) Long specializationId) {
-        if (specializationId != null) {
-            return ResponseEntity.ok(doctorService.getDoctorsBySpecialization(specializationId));
-        }
-        return ResponseEntity.ok(doctorService.getAllDoctors());
+    public ResponseEntity<List<DoctorCardDto>> getDoctors(
+            @RequestParam(required = false) String name,
+            @RequestParam(required = false) Long specializationId) {
+        return ResponseEntity.ok(doctorService.searchDoctors(name, specializationId));
     }
 }
