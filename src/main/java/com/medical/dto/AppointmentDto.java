@@ -18,5 +18,6 @@ public class AppointmentDto {
     private String patientName;
     private String phone;
     private String reason;
+    private String symptoms;
     private String status; // 'pending', 'confirmed', 'completed', 'canceled'
 }

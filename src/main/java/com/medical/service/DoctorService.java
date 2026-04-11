@@ -74,10 +74,9 @@ public class DoctorService {
                 .phoneNumber(doctor.getUser().getPhoneNumber())
                 .email(doctor.getUser().getEmail())
                 .experienceYears(doctor.getExperienceYears())
-                // Assuming we have fields for bio/education in Doctor, but we only have experienceYears in entity
-                // We'll mock bio and education as empty for now to match DTO if not available in DB
-                .biography("Mock data: Biography...")
-                .education("Mock data: Education...")
+                .avatarUrl(doctor.getAvatarUrl())
+                .biography("")
+                .education("")
                 .build();
     }
 
@@ -99,5 +98,13 @@ public class DoctorService {
         doctorRepository.save(doctor);
 
         return getProfileByUsername(username);
+    }
+
+    @Transactional
+    public void updateAvatarUrl(String username, String avatarUrl) {
+        Doctor doctor = doctorRepository.findByUserUsername(username)
+                .orElseThrow(() -> new RuntimeException("Doctor profile not found"));
+        doctor.setAvatarUrl(avatarUrl);
+        doctorRepository.save(doctor);
     }
 }

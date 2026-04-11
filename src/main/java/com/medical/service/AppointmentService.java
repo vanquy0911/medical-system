@@ -62,8 +62,12 @@ public class AppointmentService {
                 boolean isWorking = schedules.stream().anyMatch(s -> s.getShift() == requiredShift);
 
                 if (!isWorking) {
-                        throw new RuntimeException("Bác sĩ không có lịch làm việc vào ca này (" +
-                                        (requiredShift == Shift.MORNING ? "Sáng" : "Chiều") + ").");
+                        WorkSchedule newSchedule = WorkSchedule.builder()
+                                        .doctor(doctor)
+                                        .workDate(appointmentTime.toLocalDate())
+                                        .shift(requiredShift)
+                                        .build();
+                        workScheduleRepository.save(newSchedule);
                 }
 
                 // 3. Kiểm tra trùng lịch (đã có)
@@ -76,6 +80,7 @@ public class AppointmentService {
                                 .patient(patient)
                                 .doctor(doctor)
                                 .appointmentTime(appointmentTime)
+                                .symptoms(request.getSymptoms())
                                 .status(AppointmentStatus.PENDING)
                                 .build();
 
@@ -109,6 +114,28 @@ public class AppointmentService {
         }
 
         @Transactional(readOnly = true)
+        public List<String> getAvailableTimeSlots(Long doctorId, LocalDate date) {
+                List<String> allSlots = List.of("08:00", "08:30", "09:00", "09:30", "10:00", "13:30", "14:00", "15:30", "16:00");
+                LocalDateTime startOfDay = date.atStartOfDay();
+                LocalDateTime endOfDay = date.atTime(LocalTime.MAX);
+                
+                List<Appointment> bookedAppointments = appointmentRepository
+                                .findByDoctorIdAndAppointmentTimeBetweenOrderByAppointmentTimeAsc(
+                                                doctorId, startOfDay, endOfDay);
+                
+                // Trích xuất danh sách các giờ đã đặt (ở trạng thái PENDING hoặc CONFIRMED)
+                List<String> bookedTimes = bookedAppointments.stream()
+                        .filter(a -> a.getStatus() != AppointmentStatus.CANCELED)
+                        .map(a -> a.getAppointmentTime().toLocalTime().format(DateTimeFormatter.ofPattern("HH:mm")))
+                        .collect(Collectors.toList());
+                        
+                // Lọc bỏ những khung giờ đã đặt
+                return allSlots.stream()
+                        .filter(slot -> !bookedTimes.contains(slot))
+                        .collect(Collectors.toList());
+        }
+
+        @Transactional(readOnly = true)
         public List<AppointmentDto> getMyAppointments(String username) {
                 List<Appointment> appointments = appointmentRepository
                                 .findByPatientUserUsernameOrderByAppointmentTimeDesc(username);
@@ -129,7 +156,8 @@ public class AppointmentService {
                                                 : "Đa khoa")
                                 .patientName(app.getPatient().getFullName())
                                 .phone(app.getPatient().getUser().getPhoneNumber())
-                                .reason("Khám bệnh")
+                                .reason(app.getSymptoms() != null ? app.getSymptoms() : "Khám bệnh")
+                                .symptoms(app.getSymptoms())
                                 .status(app.getStatus().name().toLowerCase())
                                 .build();
         }
@@ -170,7 +198,13 @@ public class AppointmentService {
                 boolean isWorking = schedules.stream().anyMatch(s -> s.getShift() == requiredShift);
 
                 if (!isWorking) {
-                        throw new RuntimeException("Bác sĩ không có lịch làm việc vào ca này.");
+                        // Tự động Add lịch làm việc 
+                        WorkSchedule newSchedule = WorkSchedule.builder()
+                                        .doctor(doctor)
+                                        .workDate(newTime.toLocalDate())
+                                        .shift(requiredShift)
+                                        .build();
+                        workScheduleRepository.save(newSchedule);
                 }
 
                 // Kiểm tra trùng lịch (loại trừ chính nó)

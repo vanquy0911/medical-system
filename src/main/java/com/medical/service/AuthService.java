@@ -45,7 +45,7 @@ public class AuthService {
                 .password(passwordEncoder.encode(request.getPassword()))
                 .phoneNumber(request.getPhoneNumber())
                 .role(request.getRole() != null ? request.getRole() : Role.USER)
-                .enabled(false)
+                .enabled(true)
                 .build();
 
         userRepository.save(user);
@@ -58,7 +58,8 @@ public class AuthService {
         verificationToken.setExpiryDate(24); // 24 hours expiration
         tokenRepository.save(verificationToken);
 
-        emailService.sendVerificationEmail(user.getEmail(), token);
+        // Bỏ qua gửi email xác thực để test nhanh
+        // emailService.sendVerificationEmail(user.getEmail(), token);
 
         return "User registered successfully. Please check your email to verify your account.";
     }

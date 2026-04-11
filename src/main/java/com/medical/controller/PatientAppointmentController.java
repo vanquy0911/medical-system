@@ -14,7 +14,7 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/v1/patients/appointments")
 @RequiredArgsConstructor
-@PreAuthorize("hasRole('PATIENT')")
+@PreAuthorize("hasRole('USER')")
 public class PatientAppointmentController {
 
     private final AppointmentService appointmentService;
@@ -26,10 +26,14 @@ public class PatientAppointmentController {
     }
 
     @PostMapping("/book")
-    public ResponseEntity<String> bookAppointment(@RequestBody BookingRequestDto request, Authentication authentication) {
-        String username = authentication.getName();
-        appointmentService.createAppointment(username, request);
-        return ResponseEntity.ok("Đặt lịch thành công! Đang chờ phòng khám xác nhận.");
+    public ResponseEntity<?> bookAppointment(@RequestBody BookingRequestDto request, Authentication authentication) {
+        try {
+            String username = authentication.getName();
+            appointmentService.createAppointment(username, request);
+            return ResponseEntity.ok("Đặt lịch thành công! Đang chờ phòng khám xác nhận.");
+        } catch (RuntimeException e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
     }
 
     @PutMapping("/{id}/cancel")
@@ -40,12 +44,16 @@ public class PatientAppointmentController {
     }
 
     @PutMapping("/{id}/reschedule")
-    public ResponseEntity<String> rescheduleAppointment(
+    public ResponseEntity<?> rescheduleAppointment(
             @PathVariable Long id,
             @RequestBody BookingRequestDto request,
             Authentication authentication) {
-        String username = authentication.getName();
-        appointmentService.rescheduleAppointment(id, username, request);
-        return ResponseEntity.ok("Đổi lịch thành công! Đang chờ phòng khám xác nhận lại.");
+        try {
+            String username = authentication.getName();
+            appointmentService.rescheduleAppointment(id, username, request);
+            return ResponseEntity.ok("Đổi lịch thành công! Đang chờ phòng khám xác nhận lại.");
+        } catch (RuntimeException e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
     }
 }

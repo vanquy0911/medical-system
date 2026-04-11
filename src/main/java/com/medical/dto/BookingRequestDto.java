@@ -8,7 +8,9 @@ import lombok.*;
 @Builder
 public class BookingRequestDto {
     private Long doctorId;
+    private Long specializationId;
     private String appointmentDate; // YYYY-MM-DD
     private String appointmentTime; // HH:mm
     private String symptoms;
+    private String patientPhone;
 }

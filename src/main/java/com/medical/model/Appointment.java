@@ -27,6 +27,8 @@ public class Appointment {
     @Column(nullable = false)
     private LocalDateTime appointmentTime;
 
+    private String symptoms;
+
     @Enumerated(EnumType.STRING)
     @Builder.Default
     private AppointmentStatus status = AppointmentStatus.PENDING;

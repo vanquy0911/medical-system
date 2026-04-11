@@ -2,7 +2,9 @@ package com.medical.service;
 
 import com.medical.dto.PatientProfileDto;
 import com.medical.model.Patient;
+import com.medical.model.User;
 import com.medical.repository.PatientRepository;
+import com.medical.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -12,11 +14,24 @@ import org.springframework.transaction.annotation.Transactional;
 public class PatientService {
 
     private final PatientRepository patientRepository;
+    private final UserRepository userRepository;
 
-    @Transactional(readOnly = true)
+    private Patient getOrCreatePatient(String username) {
+        return patientRepository.findByUserUsername(username)
+                .orElseGet(() -> {
+                    User user = userRepository.findByUsername(username)
+                            .orElseThrow(() -> new RuntimeException("User not found: " + username));
+                    Patient newPatient = Patient.builder()
+                            .user(user)
+                            .fullName(user.getUsername() != null ? user.getUsername() : "Chưa cập nhật")
+                            .build();
+                    return patientRepository.save(newPatient);
+                });
+    }
+
+    @Transactional
     public PatientProfileDto getProfileByUsername(String username) {
-        Patient patient = patientRepository.findByUserUsername(username)
-                .orElseThrow(() -> new RuntimeException("Patient profile not found for user: " + username));
+        Patient patient = getOrCreatePatient(username);
         
         return PatientProfileDto.builder()
                 .fullName(patient.getFullName())
@@ -25,26 +40,47 @@ public class PatientService {
                 .dateOfBirth(patient.getDateOfBirth())
                 .gender(patient.getGender())
                 .address(patient.getAddress())
+                .avatarUrl(patient.getAvatarUrl())
                 .build();
     }
 
     @Transactional
     public PatientProfileDto updateProfile(String username, PatientProfileDto payload) {
-        Patient patient = patientRepository.findByUserUsername(username)
-                .orElseThrow(() -> new RuntimeException("Patient profile not found"));
+        Patient patient = getOrCreatePatient(username);
         
         // Update Patient entity
-        patient.setFullName(payload.getFullName());
+        if (payload.getFullName() != null) {
+            patient.setFullName(payload.getFullName());
+        }
         patient.setDateOfBirth(payload.getDateOfBirth());
         patient.setGender(payload.getGender());
         patient.setAddress(payload.getAddress());
 
         // Update User entity linked to the Patient
-        patient.getUser().setPhoneNumber(payload.getPhoneNumber());
-        patient.getUser().setEmail(payload.getEmail());
+        if (payload.getPhoneNumber() != null) {
+            patient.getUser().setPhoneNumber(payload.getPhoneNumber());
+        }
+        if (payload.getEmail() != null) {
+            patient.getUser().setEmail(payload.getEmail());
+        }
 
         patientRepository.save(patient);
 
-        return getProfileByUsername(username);
+        return PatientProfileDto.builder()
+                .fullName(patient.getFullName())
+                .email(patient.getUser().getEmail())
+                .phoneNumber(patient.getUser().getPhoneNumber())
+                .dateOfBirth(patient.getDateOfBirth())
+                .gender(patient.getGender())
+                .address(patient.getAddress())
+                .avatarUrl(patient.getAvatarUrl())
+                .build();
+    }
+
+    @Transactional
+    public void updateAvatarUrl(String username, String avatarUrl) {
+        Patient patient = getOrCreatePatient(username);
+        patient.setAvatarUrl(avatarUrl);
+        patientRepository.save(patient);
     }
 }

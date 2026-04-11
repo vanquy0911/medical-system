@@ -11,6 +11,6 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 public class PrescriptionItemDto {
     private String name;
-    private String qty;
+    private Integer quantity;
     private String usage;
 }

@@ -20,7 +20,8 @@ public class DoctorExaminationController {
     private final MedicalRecordService medicalRecordService;
 
     @GetMapping("/patients/{patientId}/history")
-    public ResponseEntity<com.medical.dto.PatientHistoryResponse> getPatientHistory(@PathVariable Long patientId, Authentication authentication) {
+    public ResponseEntity<com.medical.dto.PatientHistoryResponse> getPatientHistory(@PathVariable Long patientId,
+            Authentication authentication) {
         String username = authentication.getName();
         return ResponseEntity.ok(medicalRecordService.getPatientHistory(username, patientId));
     }
@@ -34,4 +35,5 @@ public class DoctorExaminationController {
         medicalRecordService.saveExamination(username, appointmentId, payload);
         return ResponseEntity.ok().build();
     }
+
 }

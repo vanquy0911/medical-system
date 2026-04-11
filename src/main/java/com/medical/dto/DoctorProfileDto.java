@@ -17,4 +17,5 @@ public class DoctorProfileDto {
     private String biography;
     private String education;
     private Integer experienceYears;
+    private String avatarUrl;
 }
