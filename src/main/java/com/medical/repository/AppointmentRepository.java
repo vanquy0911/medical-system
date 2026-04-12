@@ -2,6 +2,8 @@ package com.medical.repository;
 
 import com.medical.model.Appointment;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.time.LocalDateTime;
@@ -20,5 +22,6 @@ public interface AppointmentRepository extends JpaRepository<Appointment, Long> 
 
     Optional<Appointment> findByIdAndPatientUserUsername(Long id, String username);
 
-    List<Appointment> findByPatientUserUsernameOrderByAppointmentTimeDesc(String username);
+    @Query("SELECT a FROM Appointment a WHERE a.patient.user.username = :username ORDER BY a.id DESC")
+    List<Appointment> findByPatientUserUsernameOrderByAppointmentTimeDesc(@Param("username") String username);
 }

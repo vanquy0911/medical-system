@@ -29,8 +29,13 @@ public class PatientAppointmentController {
     public ResponseEntity<?> bookAppointment(@RequestBody BookingRequestDto request, Authentication authentication) {
         try {
             String username = authentication.getName();
-            appointmentService.createAppointment(username, request);
-            return ResponseEntity.ok("Đặt lịch thành công! Đang chờ phòng khám xác nhận.");
+            var appointment = appointmentService.createAppointment(username, request);
+            
+            java.util.Map<String, Object> response = new java.util.HashMap<>();
+            response.put("id", appointment.getId());
+            response.put("message", "Đặt lịch thành công! Đang chờ phòng khám xác nhận.");
+            
+            return ResponseEntity.ok(response);
         } catch (RuntimeException e) {
             return ResponseEntity.badRequest().body(e.getMessage());
         }

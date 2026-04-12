@@ -18,6 +18,22 @@ import java.util.Map;
 public class AdminController {
 
     private final AdminService adminService;
+    private final com.medical.service.PaymentService paymentService;
+
+    @GetMapping("/payments")
+    public ResponseEntity<?> getAllPayments() {
+        return ResponseEntity.ok(paymentService.getAllPayments());
+    }
+
+    @PutMapping("/payments/{id}/confirm")
+    public ResponseEntity<?> confirmPayment(@PathVariable Long id) {
+        try {
+            paymentService.confirmPayment(id);
+            return ResponseEntity.ok(Map.of("message", "Đã xác nhận thanh toán thành công."));
+        } catch (RuntimeException e) {
+            return ResponseEntity.badRequest().body(Map.of("message", e.getMessage()));
+        }
+    }
 
     @GetMapping("/stats")
     public ResponseEntity<Map<String, Long>> getStats() {

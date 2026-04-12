@@ -23,4 +23,6 @@ public class AppointmentDto {
     private String diagnosis;
     private String prescription;
     private Long price;
+    private String paymentMethod;
+    private String bookedAt;
 }
