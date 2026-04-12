@@ -20,4 +20,7 @@ public class AppointmentDto {
     private String reason;
     private String symptoms;
     private String status; // 'pending', 'confirmed', 'completed', 'canceled'
+    private String diagnosis;
+    private String prescription;
+    private Long price;
 }

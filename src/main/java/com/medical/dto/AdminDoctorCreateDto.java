@@ -9,20 +9,16 @@ import lombok.NoArgsConstructor;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class DoctorProfileDto {
-    private String fullName;
-    private String specializationName;
-    private String phoneNumber;
+public class AdminDoctorCreateDto {
+    private String username;
+    private String password;
     private String email;
+    private String fullName;
+    private String phone;
+    private Long specializationId;
     private String biography;
     private String education;
-    private Integer experienceYears;
-    private String avatarUrl;
-    private String leaveStartDate;
-    private String leaveEndDate;
     private String achievements;
     private String hospital;
-    private Double rating;
-    private Integer reviewCount;
     private java.util.List<String> certificateUrls;
 }

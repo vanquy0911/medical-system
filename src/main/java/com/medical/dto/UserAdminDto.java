@@ -9,17 +9,18 @@ import lombok.NoArgsConstructor;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class DoctorProfileDto {
-    private String fullName;
-    private String specializationName;
-    private String phoneNumber;
+public class UserAdminDto {
+    private Long id;
+    private String username;
     private String email;
-    private String biography;
-    private String education;
-    private Integer experienceYears;
-    private String avatarUrl;
+    private String phone;
+    private String role;
+    private boolean enabled;
+    private String createdAt;
     private String leaveStartDate;
     private String leaveEndDate;
+    private String biography;
+    private String education;
     private String achievements;
     private String hospital;
     private Double rating;

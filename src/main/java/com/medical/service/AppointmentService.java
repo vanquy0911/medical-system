@@ -5,6 +5,7 @@ import com.medical.model.Appointment;
 import com.medical.model.Doctor;
 import com.medical.repository.AppointmentRepository;
 import com.medical.repository.DoctorRepository;
+import com.medical.repository.WorkScheduleRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -49,9 +50,17 @@ public class AppointmentService {
                                 .orElseThrow(() -> new RuntimeException(
                                                 "Doctor not found with id: " + request.getDoctorId()));
 
-                LocalDateTime appointmentTime = LocalDateTime.of(
-                                LocalDate.parse(request.getAppointmentDate()),
-                                LocalTime.parse(request.getAppointmentTime()));
+                LocalDate date = LocalDate.parse(request.getAppointmentDate());
+                LocalDateTime appointmentTime;
+                if (request.getAppointmentTime().contains("Sáng")) {
+                    appointmentTime = LocalDateTime.of(date, LocalTime.of(8, 0));
+                } else if (request.getAppointmentTime().contains("Chiều")) {
+                    appointmentTime = LocalDateTime.of(date, LocalTime.of(13, 30));
+                } else {
+                    // Fallback for old explicit times
+                    LocalTime time = LocalTime.parse(request.getAppointmentTime());
+                    appointmentTime = LocalDateTime.of(date, time);
+                }
 
                 // 1. Kiểm tra xem giờ đặt có nằm trong khung giờ làm việc không và thuộc ca nào
                 Shift requiredShift = determineShift(appointmentTime.toLocalTime());
@@ -70,10 +79,17 @@ public class AppointmentService {
                         workScheduleRepository.save(newSchedule);
                 }
 
-                // 3. Kiểm tra trùng lịch (đã có)
-                if (appointmentRepository.findByDoctorIdAndAppointmentTimeBetweenOrderByAppointmentTimeAsc(
-                                doctor.getId(), appointmentTime, appointmentTime).size() > 0) {
-                        throw new RuntimeException("Khung giờ này đã có người đặt.");
+                // Capacity check per logic limit
+                long overlappingCount = appointmentRepository.findByDoctorIdAndAppointmentTimeBetweenOrderByAppointmentTimeAsc(
+                        doctor.getId(),
+                        appointmentTime.toLocalDate().atStartOfDay(),
+                        appointmentTime.toLocalDate().atTime(LocalTime.MAX)
+                ).stream()
+                 .filter(a -> a.getStatus() != AppointmentStatus.CANCELED && a.getAppointmentTime().isEqual(appointmentTime))
+                 .count();
+
+                if (overlappingCount >= 10) {
+                    throw new RuntimeException("Ca khám này đã đạt giới hạn tối đa (10 bệnh nhân). Vui lòng chọn ca khác.");
                 }
 
                 Appointment appointment = Appointment.builder()
@@ -104,35 +120,63 @@ public class AppointmentService {
                                 .orElseThrow(() -> new RuntimeException("Doctor not found"));
 
                 LocalDateTime startOfDay = LocalDate.now().atStartOfDay();
-                LocalDateTime endOfDay = LocalDate.now().atTime(LocalTime.MAX);
 
+                // Fetch ALL upcoming appointments starting from the beginning of today
                 List<Appointment> appointments = appointmentRepository
-                                .findByDoctorIdAndAppointmentTimeBetweenOrderByAppointmentTimeAsc(
-                                                doctor.getId(), startOfDay, endOfDay);
+                                .findByDoctorIdAndAppointmentTimeGreaterThanEqualOrderByAppointmentTimeAsc(
+                                                doctor.getId(), startOfDay);
 
                 return appointments.stream().map(this::mapToDto).collect(Collectors.toList());
         }
 
         @Transactional(readOnly = true)
         public List<String> getAvailableTimeSlots(Long doctorId, LocalDate date) {
-                List<String> allSlots = List.of("08:00", "08:30", "09:00", "09:30", "10:00", "13:30", "14:00", "15:30", "16:00");
-                LocalDateTime startOfDay = date.atStartOfDay();
-                LocalDateTime endOfDay = date.atTime(LocalTime.MAX);
-                
-                List<Appointment> bookedAppointments = appointmentRepository
-                                .findByDoctorIdAndAppointmentTimeBetweenOrderByAppointmentTimeAsc(
-                                                doctorId, startOfDay, endOfDay);
-                
-                // Trích xuất danh sách các giờ đã đặt (ở trạng thái PENDING hoặc CONFIRMED)
-                List<String> bookedTimes = bookedAppointments.stream()
-                        .filter(a -> a.getStatus() != AppointmentStatus.CANCELED)
-                        .map(a -> a.getAppointmentTime().toLocalTime().format(DateTimeFormatter.ofPattern("HH:mm")))
-                        .collect(Collectors.toList());
-                        
-                // Lọc bỏ những khung giờ đã đặt
-                return allSlots.stream()
-                        .filter(slot -> !bookedTimes.contains(slot))
-                        .collect(Collectors.toList());
+            List<String> availableSlots = new java.util.ArrayList<>();
+            
+            Doctor doctor = doctorRepository.findById(doctorId).orElse(null);
+            if (doctor == null) return availableSlots;
+
+            // Check if Doctor is on Leave
+            if (doctor.getLeaveStartDate() != null && doctor.getLeaveEndDate() != null) {
+                if (!date.isBefore(doctor.getLeaveStartDate()) && !date.isAfter(doctor.getLeaveEndDate())) {
+                    return availableSlots; // Doctor is on leave, no slots!
+                }
+            }
+
+            // Check Doctor's registered shifts for this date
+            List<WorkSchedule> schedules = workScheduleRepository.findByDoctorIdAndWorkDate(doctorId, date);
+            if (schedules.isEmpty()) {
+                return availableSlots; // No shifts registered today
+            }
+
+            LocalDateTime startOfDay = date.atStartOfDay();
+            LocalDateTime endOfDay = date.atTime(LocalTime.MAX);
+            
+            List<Appointment> bookedAppointments = appointmentRepository
+                            .findByDoctorIdAndAppointmentTimeBetweenOrderByAppointmentTimeAsc(
+                                            doctorId, startOfDay, endOfDay);
+            
+            boolean worksMorning = schedules.stream().anyMatch(s -> s.getShift() == Shift.MORNING);
+            boolean worksAfternoon = schedules.stream().anyMatch(s -> s.getShift() == Shift.AFTERNOON);
+
+            if (worksMorning) {
+                long morningCount = bookedAppointments.stream()
+                    .filter(a -> a.getStatus() != AppointmentStatus.CANCELED && a.getAppointmentTime().toLocalTime().equals(LocalTime.of(8, 0)))
+                    .count();
+                if (morningCount < 10) {
+                    availableSlots.add("Ca Sáng (còn " + (10 - morningCount) + " chỗ)");
+                }
+            }
+
+            if (worksAfternoon) {
+                long afternoonCount = bookedAppointments.stream()
+                    .filter(a -> a.getStatus() != AppointmentStatus.CANCELED && a.getAppointmentTime().toLocalTime().equals(LocalTime.of(13, 30)))
+                    .count();
+                if (afternoonCount < 10) {
+                    availableSlots.add("Ca Chiều (còn " + (10 - afternoonCount) + " chỗ)");
+                }
+            }
+            return availableSlots;
         }
 
         @Transactional(readOnly = true)
@@ -145,6 +189,17 @@ public class AppointmentService {
         private AppointmentDto mapToDto(Appointment app) {
                 DateTimeFormatter dateFormatter = DateTimeFormatter.ofPattern("dd/MM/yyyy");
                 DateTimeFormatter timeFormatter = DateTimeFormatter.ofPattern("HH:mm");
+
+                String diagnosisData = null;
+                String prescriptionData = null;
+                Long priceData = 300000L; // Mock baseline price
+
+                if (app.getMedicalRecord() != null) {
+                    diagnosisData = app.getMedicalRecord().getDiagnosis();
+                    if (app.getMedicalRecord().getPrescription() != null) {
+                        prescriptionData = app.getMedicalRecord().getPrescription().getMedicineList();
+                    }
+                }
 
                 return AppointmentDto.builder()
                                 .id(app.getId())
@@ -159,6 +214,9 @@ public class AppointmentService {
                                 .reason(app.getSymptoms() != null ? app.getSymptoms() : "Khám bệnh")
                                 .symptoms(app.getSymptoms())
                                 .status(app.getStatus().name().toLowerCase())
+                                .diagnosis(diagnosisData)
+                                .prescription(prescriptionData)
+                                .price(priceData)
                                 .build();
         }
 

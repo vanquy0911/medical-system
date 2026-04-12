@@ -32,4 +32,7 @@ public class Appointment {
     @Enumerated(EnumType.STRING)
     @Builder.Default
     private AppointmentStatus status = AppointmentStatus.PENDING;
+
+    @OneToOne(mappedBy = "appointment", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    private MedicalRecord medicalRecord;
 }

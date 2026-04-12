@@ -27,4 +27,7 @@ public class MedicalRecord {
 
     @Column(columnDefinition = "TEXT")
     private String notes;
+
+    @OneToOne(mappedBy = "medicalRecord", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    private Prescription prescription;
 }

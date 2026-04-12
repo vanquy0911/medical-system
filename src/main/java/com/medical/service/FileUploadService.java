@@ -14,12 +14,14 @@ import java.util.UUID;
 public class FileUploadService {
 
     private final Path uploadDir = Paths.get("uploads/avatars").toAbsolutePath().normalize();
+    private final Path certificateDir = Paths.get("uploads/certificates").toAbsolutePath().normalize();
 
     public FileUploadService() {
         try {
             Files.createDirectories(uploadDir);
+            Files.createDirectories(certificateDir);
         } catch (IOException e) {
-            throw new RuntimeException("Không thể tạo thư mục upload: " + uploadDir, e);
+            throw new RuntimeException("Không thể tạo các thư mục upload", e);
         }
     }
 
@@ -27,6 +29,17 @@ public class FileUploadService {
      * Lưu file ảnh vào thư mục uploads/avatars và trả về đường dẫn tương đối
      */
     public String saveAvatar(MultipartFile file) {
+        return saveFile(file, certificateDir.getParent().resolve("avatars"), "/uploads/avatars/");
+    }
+
+    /**
+     * Lưu file ảnh vào thư mục uploads/certificates và trả về đường dẫn tương đối
+     */
+    public String saveCertificate(MultipartFile file) {
+        return saveFile(file, certificateDir, "/uploads/certificates/");
+    }
+
+    private String saveFile(MultipartFile file, Path targetDir, String urlPrefix) {
         if (file.isEmpty()) {
             throw new RuntimeException("File trống!");
         }
@@ -52,11 +65,11 @@ public class FileUploadService {
             String uniqueFilename = UUID.randomUUID().toString() + extension;
 
             // Save file
-            Path targetPath = uploadDir.resolve(uniqueFilename);
+            Path targetPath = targetDir.resolve(uniqueFilename);
             Files.copy(file.getInputStream(), targetPath, StandardCopyOption.REPLACE_EXISTING);
 
             // Return relative URL path
-            return "/uploads/avatars/" + uniqueFilename;
+            return urlPrefix + uniqueFilename;
         } catch (IOException e) {
             throw new RuntimeException("Không thể lưu file ảnh: " + e.getMessage(), e);
         }

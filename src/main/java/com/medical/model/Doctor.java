@@ -2,6 +2,7 @@ package com.medical.model;
 
 import jakarta.persistence.*;
 import lombok.*;
+import java.time.LocalDate;
 
 @Entity
 @Table(name = "doctors")
@@ -29,4 +30,30 @@ public class Doctor {
     private int experienceYears;
 
     private String avatarUrl;
+
+    @Column(columnDefinition = "TEXT")
+    private String biography;
+
+    @Column(columnDefinition = "TEXT")
+    private String education;
+
+    @Column(columnDefinition = "TEXT")
+    private String achievements;
+
+    private String hospital;
+
+    private Double rating;
+
+    private Integer reviewCount;
+
+    @Column(name = "leave_start_date")
+    private LocalDate leaveStartDate;
+
+    @Column(name = "leave_end_date")
+    private LocalDate leaveEndDate;
+
+    @ElementCollection
+    @CollectionTable(name = "doctor_certificates", joinColumns = @JoinColumn(name = "doctor_id"))
+    @Column(name = "certificate_url")
+    private java.util.List<String> certificateUrls = new java.util.ArrayList<>();
 }

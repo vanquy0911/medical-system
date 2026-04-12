@@ -38,6 +38,16 @@ public class PublicController {
         return ResponseEntity.ok(doctorService.searchDoctors(name, specializationId));
     }
 
+    @GetMapping("/doctors/{id}")
+    public ResponseEntity<DoctorCardDto> getDoctorById(@PathVariable Long id) {
+        return ResponseEntity.ok(doctorService.getDoctorById(id));
+    }
+
+    @GetMapping("/doctors/{id}/profile")
+    public ResponseEntity<?> getDoctorProfileById(@PathVariable Long id) {
+        return ResponseEntity.ok(doctorService.getDoctorProfileById(id));
+    }
+
     @GetMapping("/doctors/{id}/available-slots")
     public ResponseEntity<List<String>> getAvailableSlots(
             @PathVariable Long id,
